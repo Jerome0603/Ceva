@@ -562,7 +562,7 @@ export default function CompanyAdminDashboard({ view }) {
       {view !== '3pl' ? (
         <div className="content-grid">
           {/* Left Column / Primary Content */}
-          <div style={{ gridColumn: view === 'verify' ? 'span 2' : 'span 1' }}>
+          <div style={{ gridColumn: (view === 'verify' || view === 'dashboard') ? 'span 2' : 'span 1' }}>
             {/* Dashboard View: Active On-Site Roster */}
             {view === 'dashboard' && (
               <div className="panel">
@@ -583,11 +583,18 @@ export default function CompanyAdminDashboard({ view }) {
                   <div className="panel-body-flush">
                     <table className="data-table">
                       <thead>
-                        <tr><th>Worker</th><th>Supervisor</th><th>Clearance Zone</th><th>Dates</th></tr>
+                        <tr>
+                          <th>Worker</th>
+                          <th>Supervisor</th>
+                          <th>Clearance Zone</th>
+                          <th>Dates</th>
+                          <th>Security Alert</th>
+                        </tr>
                       </thead>
                       <tbody>
                         {allCompanyPasses.filter(p => p.checkedIn && !p.checkedOut).map(p => {
                           const worker = workers.find(w => w.id === p.workerId);
+                          const hasOverstay = alerts.some(a => a.passId === p.id && a.type === 'overstay' && !a.resolved);
                           return (
                             <tr key={p.id}>
                               <td>
@@ -597,6 +604,13 @@ export default function CompanyAdminDashboard({ view }) {
                               <td><div className="cell-secondary">{p.supervisorName}</div></td>
                               <td><span className="zone-badge">{p.zoneLevel}</span></td>
                               <td><div className="cell-secondary">{p.startDate} – {p.endDate}</div></td>
+                              <td>
+                                {hasOverstay ? (
+                                  <span className="status-pill status-rejected" style={{ background: '#ef4444', color: '#fff', fontWeight: 600 }}>⚠️ Overstay Alert</span>
+                                ) : (
+                                  <span className="status-pill status-approved">Normal</span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
@@ -973,7 +987,7 @@ export default function CompanyAdminDashboard({ view }) {
 
           {/* Right Column / Forms */}
           {view !== 'verify' && (
-            <div>
+            <div style={{ gridColumn: view === 'dashboard' ? 'span 2' : undefined }}>
               {/* Dashboard View: Live Scoped Entrance Logs */}
               {view === 'dashboard' && (
                 <>

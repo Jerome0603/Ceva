@@ -68,6 +68,13 @@ export default function TruckAdminDashboard({ role, view }) {
   const myCompany = companies.find(c => c.id === myCompanyId);
   const myParentCompanyId = myCompany?.parentCompanyId;
 
+  const cargoAlerts = (alerts || []).filter(a => {
+    if (a.resolved) return false;
+    const delivery = deliveries.find(d => d.id === a.passId);
+    if (delivery && delivery.companyId === myCompanyId) return true;
+    return false;
+  });
+
   const selTruckingId = myCompanyId || approvedTrucking[0]?.id || '';
   const selVendorId = myParentCompanyId || approvedVendors[0]?.id || '';
 
@@ -341,6 +348,22 @@ export default function TruckAdminDashboard({ role, view }) {
           </div>
           <span className="page-header-badge badge-trucking">Fleet Admin</span>
         </div>
+
+        {/* Critical Security Alerts */}
+        {cargoAlerts.length > 0 && (
+          <div className="alert-banner" style={{ marginBottom: 20 }}>
+            <div className="alert-banner-label pulse-text">Critical Security Alerts ({cargoAlerts.length})</div>
+            {cargoAlerts.map(a => (
+              <div key={a.id} className="alert-item">
+                <div>
+                  <div className="alert-item-text">{a.message}</div>
+                  <div className="alert-item-time">Logged: {a.timestamp || new Date(a.created_at).toLocaleTimeString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <TenantBar />
         <div className="stats-row" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
           <div className="stat-card">
@@ -442,12 +465,20 @@ export default function TruckAdminDashboard({ role, view }) {
             <div className="panel-body-flush">
               <table className="data-table">
                 <thead>
-                  <tr><th>Dispatch ID</th><th>Type</th><th>Truck/Driver</th><th>Seal / Cargo</th><th>Status</th></tr>
+                  <tr>
+                    <th>Dispatch ID</th>
+                    <th>Type</th>
+                    <th>Truck/Driver</th>
+                    <th>Seal / Cargo</th>
+                    <th>Status</th>
+                    <th>Security Alert</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {companyDeliveries.map(d => {
                     const trk = trucks.find(t => t.id === d.truckId);
                     const drv = drivers.find(drv => drv.id === d.driverId);
+                    const activeAlert = alerts.find(a => a.passId === d.id && !a.resolved);
                     return (
                       <tr key={d.id}>
                         <td><div className="cell-mono cell-secondary">#{d.id.slice(-6)}</div></td>
@@ -464,6 +495,15 @@ export default function TruckAdminDashboard({ role, view }) {
                           <span className={`status-pill ${d.status === 'checked_in' ? 'pill-approved' : d.status === 'checked_out' ? 'pill-pending_ceva' : 'pill-pending'}`}>
                             {d.status === 'checked_in' ? 'On-Site' : d.status === 'checked_out' ? 'Departed' : 'Assigned'}
                           </span>
+                        </td>
+                        <td>
+                          {activeAlert ? (
+                            <span className="status-pill status-rejected" style={{ background: '#ef4444', color: '#fff', fontWeight: 600, textTransform: 'capitalize' }}>
+                              ⚠️ {activeAlert.type.replace('_', ' ')}
+                            </span>
+                          ) : (
+                            <span className="status-pill status-approved">Normal</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -751,12 +791,20 @@ export default function TruckAdminDashboard({ role, view }) {
                 <div className="panel-body-flush">
                   <table className="data-table">
                     <thead>
-                      <tr><th>Dispatch ID</th><th>Type</th><th>Truck/Driver</th><th>Seal / Cargo</th><th>Status</th></tr>
+                      <tr>
+                        <th>Dispatch ID</th>
+                        <th>Type</th>
+                        <th>Truck/Driver</th>
+                        <th>Seal / Cargo</th>
+                        <th>Status</th>
+                        <th>Security Alert</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {companyDeliveries.map(d => {
                         const trk = trucks.find(t => t.id === d.truckId);
                         const drv = drivers.find(drv => drv.id === d.driverId);
+                        const activeAlert = alerts.find(a => a.passId === d.id && !a.resolved);
                         return (
                           <tr key={d.id}>
                             <td><div className="cell-mono cell-secondary">#{d.id.slice(-6)}</div></td>
@@ -773,6 +821,15 @@ export default function TruckAdminDashboard({ role, view }) {
                               <span className={`status-pill ${d.status === 'checked_in' ? 'pill-approved' : d.status === 'checked_out' ? 'pill-pending_ceva' : 'pill-pending'}`}>
                                 {d.status === 'checked_in' ? 'On-Site' : d.status === 'checked_out' ? 'Departed' : 'Assigned'}
                               </span>
+                            </td>
+                            <td>
+                              {activeAlert ? (
+                                <span className="status-pill status-rejected" style={{ background: '#ef4444', color: '#fff', fontWeight: 600, textTransform: 'capitalize' }}>
+                                  ⚠️ {activeAlert.type.replace('_', ' ')}
+                                </span>
+                              ) : (
+                                <span className="status-pill status-approved">Normal</span>
+                              )}
                             </td>
                           </tr>
                         );

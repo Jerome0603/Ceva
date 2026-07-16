@@ -322,6 +322,46 @@ function CompanyDetailsModal({ company, onClose, companies }) {
   );
 }
 
+function TableImage({ src, fallbackEmoji, alt }) {
+  const [error, setError] = React.useState(false);
+  
+  if (error || !src) {
+    return (
+      <div style={{ 
+        width: '40px', 
+        height: '40px', 
+        borderRadius: '6px', 
+        background: '#f8fafc', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        fontSize: '1rem',
+        border: '1.5px dashed #cbd5e1',
+        boxSizing: 'border-box'
+      }}>
+        {fallbackEmoji}
+      </div>
+    );
+  }
+  
+  return (
+    <img 
+      src={src} 
+      alt={alt}
+      onError={() => setError(true)}
+      style={{ 
+        width: '40px', 
+        height: '40px', 
+        borderRadius: '6px', 
+        objectFit: 'cover', 
+        border: '1.5px solid #cbd5e1',
+        display: 'block',
+        boxSizing: 'border-box'
+      }} 
+    />
+  );
+}
+
 export default function CevaAdminDashboard({ view }) {
   const {
     companies, verifyCompany,
@@ -457,7 +497,7 @@ export default function CevaAdminDashboard({ view }) {
       {/* Two-column grid */}
       <div className="content-grid">
         {/* Left column / Main Panel */}
-        <div>
+        <div style={{ gridColumn: view === 'cargo' ? 'span 2' : undefined }}>
           {/* VIEW: dashboard (Operations Monitor Logs) */}
           {(!view || view === 'dashboard') && (
             <div className="log-console-panel">
@@ -578,37 +618,29 @@ export default function CevaAdminDashboard({ view }) {
                         const driver = drivers.find(drv => drv.id === d.driverId);
                         return (
                           <tr key={d.id}>
-                            <td><div className="cell-mono cell-secondary">#{d.id.slice(-6)}</div></td>
+                            <td><div className="cell-mono cell-secondary" style={{ fontSize: '0.72rem' }}>#{d.id.slice(-6)}</div></td>
                             <td>
-                              <div className="cell-primary">{truck?.plate || 'OCR Error'}</div>
-                              <div className="cell-secondary">{truck?.model}</div>
+                              <div className="cell-primary" style={{ fontSize: '0.82rem' }}>{truck?.plate || 'OCR Error'}</div>
+                              <div className="cell-secondary" style={{ fontSize: '0.72rem' }}>{truck?.model}</div>
                             </td>
                             <td>
-                              <div className="cell-primary">{driver?.name || 'Unknown'}</div>
-                              <div className="cell-secondary">Lic: {driver?.license}</div>
+                              <div className="cell-primary" style={{ fontSize: '0.82rem' }}>{driver?.name || 'Unknown'}</div>
+                              <div className="cell-secondary" style={{ fontSize: '0.72rem' }}>Lic: {driver?.license}</div>
                             </td>
                             <td>
-                              <div className="sig-label">SEAL ID</div>
-                              <div className="cell-mono cell-secondary" style={{ fontSize: '0.78rem' }}>{d.sealNumber}</div>
+                              <div className="sig-label" style={{ fontSize: '0.65rem' }}>SEAL ID</div>
+                              <div className="cell-mono cell-secondary" style={{ fontSize: '0.75rem' }}>{d.sealNumber}</div>
                             </td>
                             <td>
-                              <div className="cell-primary" style={{ fontSize: '0.85rem' }}>{d.destinationFacility || 'CEVA Hub - Dock A'}</div>
+                              <div className="cell-primary" style={{ fontSize: '0.82rem' }}>{d.destinationFacility || 'CEVA Hub - Dock A'}</div>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                {d.containerPhoto ? (
-                                  <img src={d.containerPhoto} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }} alt="Container" />
-                                ) : (
-                                  <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>🚛</div>
-                                )}
-                                {d.baselineSealPhoto ? (
-                                  <img src={d.baselineSealPhoto} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }} alt="Seal" />
-                                ) : (
-                                  <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>🔒</div>
-                                )}
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <TableImage src={d.containerPhoto} fallbackEmoji="🚛" alt="Container" />
+                                <TableImage src={d.baselineSealPhoto} fallbackEmoji="🔒" alt="Seal" />
                               </div>
                             </td>
-                            <td><div className="cell-secondary">{d.items}</div></td>
+                            <td><div className="cell-secondary" style={{ fontSize: '0.78rem' }}>{d.items}</div></td>
                             <td><StatusPill status={d.status} /></td>
                           </tr>
                         );
@@ -642,44 +674,150 @@ export default function CevaAdminDashboard({ view }) {
               </div>
             </div>
           )}
+
+          {view === 'cargo' && (
+            <div className="panel" style={{ marginTop: 20 }}>
+              <div className="panel-header">
+                <span className="panel-title">Incidents & Security Violations Log</span>
+              </div>
+              <div className="panel-body" style={{ padding: 20 }}>
+                {alerts.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-title">Facility Violation Log Clear</div>
+                    <div className="empty-state-desc">All visitor shift times and logistics schedules are operating normally.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {alerts.map(a => (
+                      <div key={a.id} style={{
+                        padding: 12, borderLeft: '3.5px solid var(--ceva-orange)',
+                        background: '#f8fafc', borderRadius: 6,
+                        fontSize: '0.83rem', color: '#334155'
+                      }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{a.type.toUpperCase()} ALERT</div>
+                        <div>{a.message}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>Triggered: {a.timestamp} | Status: {a.resolved ? 'Resolved' : 'Active'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right column / Info & Side Panels */}
         <div>
           {/* VIEW: dashboard (Live Checked-in Visitors) */}
           {(!view || view === 'dashboard') && (
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">Active Visitors On-Site</span>
-                <span className="panel-badge">{activePasses.length} Checked In</span>
-              </div>
-              <div className="panel-body-flush">
-                {activePasses.length === 0 ? (
-                  <div className="panel-body">
-                    <div className="empty-state">
-                      <div className="empty-state-title">Facility Secure & Clear</div>
-                      <div className="empty-state-desc">No external visitors are currently logged inside the security zones.</div>
+            <>
+              <div className="panel" style={{ marginBottom: 20 }}>
+                <div className="panel-header">
+                  <span className="panel-title">Active Visitors On-Site</span>
+                  <span className="panel-badge">{activePasses.length} Checked In</span>
+                </div>
+                <div className="panel-body-flush">
+                  {activePasses.length === 0 ? (
+                    <div className="panel-body">
+                      <div className="empty-state">
+                        <div className="empty-state-title">Facility Secure & Clear</div>
+                        <div className="empty-state-desc">No external visitors are currently logged inside the security zones.</div>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="live-list" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {activePasses.map(p => {
-                      const worker = workers.find(w => w.id === p.workerId);
-                      const vendor = companies.find(c => c.id === p.companyId);
-                      return (
-                        <div key={p.id} className="live-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div className="live-dot" />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="cell-primary" style={{ fontSize: '0.85rem' }}>{worker?.name || 'Unknown'}</div>
-                            <div className="cell-secondary" style={{ fontSize: '0.75rem' }}>{vendor?.name} · Zone: {p.zoneLevel}</div>
+                  ) : (
+                    <div className="live-list" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {activePasses.map(p => {
+                        const worker = workers.find(w => w.id === p.workerId);
+                        const vendor = companies.find(c => c.id === p.companyId);
+                        return (
+                          <div key={p.id} className="live-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div className="live-dot" />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="cell-primary" style={{ fontSize: '0.85rem' }}>{worker?.name || 'Unknown'}</div>
+                              <div className="cell-secondary" style={{ fontSize: '0.75rem' }}>{vendor?.name} · Zone: {p.zoneLevel}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Security Alerts Widget */}
+              <div className="panel" style={{ 
+                borderLeft: activeAlerts.length > 0 ? '4px solid #ef4444' : undefined,
+                boxShadow: activeAlerts.length > 0 ? '0 4px 12px rgba(239, 68, 68, 0.08)' : undefined
+              }}>
+                <div className="panel-header" style={{ background: activeAlerts.length > 0 ? '#fef2f2' : undefined }}>
+                  <span className="panel-title" style={{ color: activeAlerts.length > 0 ? '#991b1b' : undefined }}>
+                    ⚠️ Active Security Alerts
+                  </span>
+                  <span className="panel-badge" style={{ background: activeAlerts.length > 0 ? '#ef4444' : undefined, color: '#fff' }}>
+                    {activeAlerts.length} Active
+                  </span>
+                </div>
+                <div className="panel-body" style={{ padding: 16 }}>
+                  {activeAlerts.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-state-title">No Active Alerts</div>
+                      <div className="empty-state-desc">All visitor shift times and logistics schedules are operating normally.</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {activeAlerts.map(a => (
+                        <div key={a.id} style={{
+                          padding: 12,
+                          borderRadius: 8,
+                          background: a.type === 'seal_mismatch' ? '#fffaf0' : '#fef2f2',
+                          border: `1px solid ${a.type === 'seal_mismatch' ? '#fbd38d' : '#fca5a5'}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <span style={{
+                                background: a.type === 'seal_mismatch' ? '#dd6b20' : '#e53e3e',
+                                color: '#fff',
+                                fontSize: '0.65rem',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                display: 'inline-block'
+                              }}>
+                                {a.type}
+                              </span>
+                              <p style={{ margin: '6px 0', fontSize: '0.82rem', color: '#1e293b', fontWeight: 600, lineHeight: 1.4 }}>
+                                {a.message}
+                              </p>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>
+                                Logged: {a.timestamp || new Date(a.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => resolveAlert(a.id)}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.72rem',
+                                background: '#fff',
+                                border: '1.5px solid #cbd5e1',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                color: '#475569',
+                                fontWeight: 600,
+                                flexShrink: 0
+                              }}
+                            >
+                              Resolve
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* VIEW: onboarding (Verified Company Directory) */}
@@ -728,36 +866,6 @@ export default function CevaAdminDashboard({ view }) {
             </div>
           )}
 
-          {/* VIEW: cargo (Facility Alerts / Incidents summary) */}
-          {view === 'cargo' && (
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">Incidents & Security Violations Log</span>
-              </div>
-              <div className="panel-body" style={{ padding: 20 }}>
-                {alerts.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-state-title">Facility Violation Log Clear</div>
-                    <div className="empty-state-desc">All visitor shift times and logistics schedules are operating normally.</div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {alerts.map(a => (
-                      <div key={a.id} style={{
-                        padding: 12, borderLeft: '3.5px solid var(--ceva-orange)',
-                        background: '#f8fafc', borderRadius: 6,
-                        fontSize: '0.83rem', color: '#334155'
-                      }}>
-                        <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{a.type.toUpperCase()} ALERT</div>
-                        <div>{a.message}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>Triggered: {a.timestamp} | Status: {a.resolved ? 'Resolved' : 'Active'}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
       {view === 'passes' && (

@@ -8,7 +8,8 @@ export default function WorkerMobileApp() {
     registerWorker, 
     passes, 
     requestPass,
-    supervisors
+    supervisors,
+    alerts = []
   } = useSystem();
 
   // Active Worker Session State
@@ -43,6 +44,7 @@ export default function WorkerMobileApp() {
 
   // Get active approved pass
   const activeApprovedPass = workerPasses.find(p => p.status === 'approved');
+  const activePassAlert = activeApprovedPass && alerts.find(a => !a.resolved && a.type === 'overstay' && a.passId === activeApprovedPass.id);
 
   const handleRegister = (e) => {
     e.preventDefault();
@@ -250,79 +252,96 @@ export default function WorkerMobileApp() {
                   <>
                     {/* Active/Issued Digital Pass Display */}
                     {activeApprovedPass ? (
-                      <div className="digital-pass-card">
-                        <div className="pass-header">
-                          <span className="pass-title">DIGITAL GATE PASS</span>
-                          <span className="pass-id-num">Pass #{activeApprovedPass.id.slice(-6)}</span>
-                        </div>
-                        
-                        <div className="pass-body">
-                          <div className="pass-photo-wrap">
-                            {currentWorker.photo ? (
-                              <img src={currentWorker.photo} alt={currentWorker.name} className="pass-avatar" />
-                            ) : (
-                              <div className="pass-avatar-placeholder">
-                                {currentWorker.name?.[0]?.toUpperCase() || 'W'}
+                      <>
+                        {activePassAlert && (
+                          <div style={{
+                            background: '#fef2f2',
+                            border: '2px solid #ef4444',
+                            borderRadius: '12px',
+                            padding: '12px 16px',
+                            color: '#991b1b',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            marginBottom: '16px',
+                            lineHeight: 1.4
+                          }}>
+                            ⚠️ SECURITY WARNING: You have exceeded your permitted zone access time! Please exit immediately and report to the security desk.
+                          </div>
+                        )}
+                        <div className="digital-pass-card">
+                          <div className="pass-header">
+                            <span className="pass-title">DIGITAL GATE PASS</span>
+                            <span className="pass-id-num">Pass #{activeApprovedPass.id.slice(-6)}</span>
+                          </div>
+                          
+                          <div className="pass-body">
+                            <div className="pass-photo-wrap">
+                              {currentWorker.photo ? (
+                                <img src={currentWorker.photo} alt={currentWorker.name} className="pass-avatar" />
+                              ) : (
+                                <div className="pass-avatar-placeholder">
+                                  {currentWorker.name?.[0]?.toUpperCase() || 'W'}
+                                </div>
+                              )}
+                              <div className="pass-name">
+                                <h4>{currentWorker.name}</h4>
+                                <p className="pass-vendor">{companies.find(c => c.id === currentWorker.companyId)?.name}</p>
+                              </div>
+                            </div>
+
+                            {/* Real QR Code Generated dynamically */}
+                            {(() => {
+                              const shortPassId = activeApprovedPass.id.slice(-6);
+                              const qrPayload = `CEVA LOGISTICS GATE PASS
+  -------------------------
+  Pass ID: #${shortPassId}
+  Name: ${currentWorker.name}
+  Company: ${companies.find(c => c.id === currentWorker.companyId)?.name || 'Vendor'}
+  Zone: ${activeApprovedPass.zoneLevel.split(' - ')[0]}
+  Validity: ${activeApprovedPass.startDate} to ${activeApprovedPass.endDate}
+  Hours: ${activeApprovedPass.startTime.slice(0, 5)} - ${activeApprovedPass.endTime.slice(0, 5)}
+  -------------------------
+  STATUS: VERIFIED ENTRY APPROVED`;
+                              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
+                              return (
+                                <div className="qr-box-sim">
+                                  <img src={qrUrl} alt="Gate Pass QR Code" style={{ width: 116, height: 116, display: 'block' }} />
+                                </div>
+                              );
+                            })()}
+
+                            <div className="pass-info-grid">
+                              <div className="pass-info-item">
+                                <span>ZONE</span>
+                                <strong>{activeApprovedPass.zoneLevel.split(' - ')[0]}</strong>
+                              </div>
+                              <div className="pass-info-item">
+                                <span>HOURS</span>
+                                <strong>{activeApprovedPass.startTime.slice(0, 5)} - {activeApprovedPass.endTime.slice(0, 5)}</strong>
+                              </div>
+                              <div className="pass-info-item" style={{ gridColumn: 'span 2' }}>
+                                <span>VALID DATES</span>
+                                <strong>{activeApprovedPass.startDate} to {activeApprovedPass.endDate}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Reminders Option */}
+                          <div className="reminder-box">
+                            <button 
+                              className={`btn-reminder-toggle ${reminderActive ? 'active' : ''}`}
+                              onClick={() => setReminderActive(!reminderActive)}
+                            >
+                              ⏰ {reminderActive ? 'Reminder Set (30m Remaining)' : 'Simulate 30m Time Reminder'}
+                            </button>
+                            {reminderActive && (
+                              <div className="reminder-alert-toast slide-in">
+                                <strong>🔔 In-App Reminder:</strong> Your shift ends in 30 minutes! Please plan your exit.
                               </div>
                             )}
-                            <div className="pass-name">
-                              <h4>{currentWorker.name}</h4>
-                              <p className="pass-vendor">{companies.find(c => c.id === currentWorker.companyId)?.name}</p>
-                            </div>
-                          </div>
-
-                          {/* Real QR Code Generated dynamically */}
-                          {(() => {
-                            const shortPassId = activeApprovedPass.id.slice(-6);
-                            const qrPayload = `CEVA LOGISTICS GATE PASS
--------------------------
-Pass ID: #${shortPassId}
-Name: ${currentWorker.name}
-Company: ${companies.find(c => c.id === currentWorker.companyId)?.name || 'Vendor'}
-Zone: ${activeApprovedPass.zoneLevel.split(' - ')[0]}
-Validity: ${activeApprovedPass.startDate} to ${activeApprovedPass.endDate}
-Hours: ${activeApprovedPass.startTime.slice(0, 5)} - ${activeApprovedPass.endTime.slice(0, 5)}
--------------------------
-STATUS: VERIFIED ENTRY APPROVED`;
-                            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
-                            return (
-                              <div className="qr-box-sim">
-                                <img src={qrUrl} alt="Gate Pass QR Code" style={{ width: 116, height: 116, display: 'block' }} />
-                              </div>
-                            );
-                          })()}
-
-                          <div className="pass-info-grid">
-                            <div className="pass-info-item">
-                              <span>ZONE</span>
-                              <strong>{activeApprovedPass.zoneLevel.split(' - ')[0]}</strong>
-                            </div>
-                            <div className="pass-info-item">
-                              <span>HOURS</span>
-                              <strong>{activeApprovedPass.startTime.slice(0, 5)} - {activeApprovedPass.endTime.slice(0, 5)}</strong>
-                            </div>
-                            <div className="pass-info-item" style={{ gridColumn: 'span 2' }}>
-                              <span>VALID DATES</span>
-                              <strong>{activeApprovedPass.startDate} to {activeApprovedPass.endDate}</strong>
-                            </div>
                           </div>
                         </div>
-
-                        {/* Reminders Option */}
-                        <div className="reminder-box">
-                          <button 
-                            className={`btn-reminder-toggle ${reminderActive ? 'active' : ''}`}
-                            onClick={() => setReminderActive(!reminderActive)}
-                          >
-                            ⏰ {reminderActive ? 'Reminder Set (30m Remaining)' : 'Simulate 30m Time Reminder'}
-                          </button>
-                          {reminderActive && (
-                            <div className="reminder-alert-toast slide-in">
-                              <strong>🔔 In-App Reminder:</strong> Your shift ends in 30 minutes! Please plan your exit.
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      </>
                     ) : (
                       /* Request Pass Form */
                       <div className="mobile-form-container">

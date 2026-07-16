@@ -304,6 +304,7 @@ CREATE POLICY "logs_auth_insert"   ON public.gate_logs FOR INSERT WITH CHECK (au
 CREATE POLICY "alerts_ceva_all"    ON public.security_alerts FOR ALL    USING (public.get_my_role() = 'ceva_admin');
 CREATE POLICY "alerts_cargo_all"   ON public.security_alerts FOR ALL    USING (public.get_my_role() = 'cargo_admin');
 CREATE POLICY "alerts_auth_insert" ON public.security_alerts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "alerts_auth_select" ON public.security_alerts FOR SELECT USING (auth.role() = 'authenticated');
 
 -- =============================================================
 -- SEED DATA

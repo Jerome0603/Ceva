@@ -342,7 +342,7 @@ export default function CompanyAdminDashboard({ view }) {
     companies, verifyCompany, workers, verifyWorker, deleteWorker,
     passes, approvePassVendor, approvePassVendorBulk, registerWorker, requestPass,
     supervisors = [], registerSupervisor, verifySupervisor, deleteSupervisor, logs = [],
-    trucks = [], drivers = [], deliveries = [],
+    trucks = [], drivers = [], deliveries = [], alerts = [],
   } = useSystem();
   const { profile } = useAuth();
 
@@ -399,6 +399,14 @@ export default function CompanyAdminDashboard({ view }) {
   const allCompanyPasses = passes.filter(p => p.companyId === selectedCompanyId);
   const companySupervisors = supervisors.filter(s => s.companyId === selectedCompanyId);
   const approvedSupervisors = companySupervisors.filter(s => s.status === 'approved');
+  const companyAlerts = alerts.filter(a => {
+    if (a.resolved) return false;
+    const pass = passes.find(p => p.id === a.passId);
+    if (pass && pass.companyId === selectedCompanyId) return true;
+    const delivery = deliveries.find(d => d.id === a.passId);
+    if (delivery && delivery.companyId === selectedCompanyId) return true;
+    return false;
+  });
 
   const handleAddWorker = (e) => {
     e.preventDefault();
@@ -468,6 +476,21 @@ export default function CompanyAdminDashboard({ view }) {
         </div>
         <span className="page-header-badge badge-vendor">Vendor Admin</span>
       </div>
+
+      {/* Critical Security Alerts */}
+      {companyAlerts.length > 0 && (
+        <div className="alert-banner" style={{ marginBottom: 20 }}>
+          <div className="alert-banner-label pulse-text">Critical Security Alerts ({companyAlerts.length})</div>
+          {companyAlerts.map(a => (
+            <div key={a.id} className="alert-item">
+              <div>
+                <div className="alert-item-text">{a.message}</div>
+                <div className="alert-item-time">Logged: {a.timestamp}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Company Selector */}
       <div className="panel" style={{ marginBottom: 20 }}>
@@ -953,27 +976,82 @@ export default function CompanyAdminDashboard({ view }) {
             <div>
               {/* Dashboard View: Live Scoped Entrance Logs */}
               {view === 'dashboard' && (
-                <div className="log-console-panel">
-                  <div className="log-console-header">
-                    <div className="log-live-dot" />
-                    <span className="log-console-label">Facility Entrance Logs</span>
+                <>
+                  <div className="log-console-panel" style={{ marginBottom: 20 }}>
+                    <div className="log-console-header">
+                      <div className="log-live-dot" />
+                      <span className="log-console-label">Facility Entrance Logs</span>
+                    </div>
+                    <div className="log-console-body" style={{ height: 380 }}>
+                      {logs.filter(l => l.companyName === currentCompany?.name).length === 0 ? (
+                        <div className="log-empty">No entrance events recorded for your workers.</div>
+                      ) : (
+                        logs.filter(l => l.companyName === currentCompany?.name).map(log => (
+                          <div key={log.id} className="log-line">
+                            <span className="log-ts">[{log.timestamp}]</span>
+                            <span className={log.action === 'check_in' ? 'log-entry-text' : 'log-exit-text'}>
+                              {log.action === 'check_in' ? 'CHECK-IN' : 'CHECK-OUT'}
+                            </span>
+                            <span className="log-name">{log.workerName}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  <div className="log-console-body" style={{ height: 380 }}>
-                    {logs.filter(l => l.companyName === currentCompany?.name).length === 0 ? (
-                      <div className="log-empty">No entrance events recorded for your workers.</div>
-                    ) : (
-                      logs.filter(l => l.companyName === currentCompany?.name).map(log => (
-                        <div key={log.id} className="log-line">
-                          <span className="log-ts">[{log.timestamp}]</span>
-                          <span className={log.action === 'check_in' ? 'log-entry-text' : 'log-exit-text'}>
-                            {log.action === 'check_in' ? 'CHECK-IN' : 'CHECK-OUT'}
-                          </span>
-                          <span className="log-name">{log.workerName}</span>
+
+                  {/* Active Security Alerts Panel */}
+                  <div className="panel" style={{ 
+                    borderLeft: companyAlerts.length > 0 ? '4px solid #ef4444' : undefined,
+                    boxShadow: companyAlerts.length > 0 ? '0 4px 12px rgba(239, 68, 68, 0.08)' : undefined
+                  }}>
+                    <div className="panel-header" style={{ background: companyAlerts.length > 0 ? '#fef2f2' : undefined }}>
+                      <span className="panel-title" style={{ color: companyAlerts.length > 0 ? '#991b1b' : undefined }}>
+                        ⚠️ Active Security Alerts
+                      </span>
+                      <span className="panel-badge" style={{ background: companyAlerts.length > 0 ? '#ef4444' : undefined, color: '#fff' }}>
+                        {companyAlerts.length} Active
+                      </span>
+                    </div>
+                    <div className="panel-body" style={{ padding: 16 }}>
+                      {companyAlerts.length === 0 ? (
+                        <div className="empty-state">
+                          <div className="empty-state-title">No Active Alerts</div>
+                          <div className="empty-state-desc">Your team and logistics schedules are operating normally.</div>
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {companyAlerts.map(a => (
+                            <div key={a.id} style={{
+                              padding: 12,
+                              borderRadius: 8,
+                              background: a.type === 'seal_mismatch' ? '#fffaf0' : '#fef2f2',
+                              border: `1px solid ${a.type === 'seal_mismatch' ? '#fbd38d' : '#fca5a5'}`
+                            }}>
+                              <span style={{
+                                background: a.type === 'seal_mismatch' ? '#dd6b20' : '#e53e3e',
+                                color: '#fff',
+                                fontSize: '0.65rem',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                display: 'inline-block'
+                              }}>
+                                {a.type}
+                              </span>
+                              <p style={{ margin: '6px 0', fontSize: '0.82rem', color: '#1e293b', fontWeight: 600, lineHeight: 1.4 }}>
+                                {a.message}
+                              </p>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>
+                                Logged: {a.timestamp || new Date(a.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
               {/* Supervisors View: Register New Supervisor */}

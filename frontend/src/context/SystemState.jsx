@@ -63,6 +63,61 @@ export const SystemProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [loadAll]);
 
+  // Auto-detect overstays reactively when data updates
+  useEffect(() => {
+    if (dbLoading) return;
+
+    const now = new Date();
+    const currentDateStr = now.toISOString().slice(0, 10);
+    const currentTimeStr = now.toTimeString().slice(0, 5);
+
+    // 1. Worker Overstays
+    passes.forEach(async (p) => {
+      if (p.checkedIn && !p.checkedOut && p.status === 'approved') {
+        const hasOverstayed = p.endDate < currentDateStr || (p.endDate === currentDateStr && p.endTime < currentTimeStr);
+        if (hasOverstayed) {
+          const alertExists = alerts.some(a => a.passId === p.id && a.type === 'overstay' && !a.resolved);
+          if (!alertExists) {
+            console.log(`Auto-detect: Worker ${p.id} has overstayed.`);
+            const worker = workers.find(w => w.id === p.workerId);
+            const company = companies.find(c => c.id === p.companyId);
+            await supabase.from('security_alerts').insert({
+              type: 'overstay',
+              message: `WORKER OVERSTAY: Worker ${worker?.name || 'Unknown'} (Company: ${company?.name || 'N/A'}) exceeded zone access time limit!`,
+              pass_id: p.id,
+              resolved: false,
+            });
+            await loadAlerts();
+          }
+        }
+      }
+    });
+
+    // 2. Truck Overstays
+    deliveries.forEach(async (d) => {
+      if (d.status === 'checked_in') {
+        const checkInTime = new Date(d.updatedAt || d.createdAt);
+        const minutesElapsed = (now - checkInTime) / 1000 / 60;
+        if (minutesElapsed > 5) {
+          const alertExists = alerts.some(a => a.passId === d.id && a.type === 'overstay' && !a.resolved);
+          if (!alertExists) {
+            console.log(`Auto-detect: Truck delivery ${d.id} has overstayed.`);
+            const driver  = drivers.find(drv => drv.id === d.driverId);
+            const truck   = trucks.find(t => t.id === d.truckId);
+            const company = companies.find(c => c.id === d.companyId);
+            await supabase.from('security_alerts').insert({
+              type: 'overstay',
+              message: `TRUCK OVERSTAY: Driver ${driver?.name || 'Unknown'} (Truck: ${truck?.plate || 'N/A'}) exceeded dock time limit!`,
+              pass_id: d.id,
+              resolved: false,
+            });
+            await loadAlerts();
+          }
+        }
+      }
+    });
+  }, [passes, deliveries, alerts, dbLoading, workers, companies, drivers, trucks, loadAlerts]);
+
   /* ── Derived stats ──────────────────────────────────────── */
   const activeHeadcount     = passes.filter(p => p.checkedIn && !p.checkedOut).length;
   const activeTruckHeadcount = deliveries.filter(d => d.checkedIn && !d.checkedOut).length;
@@ -308,6 +363,35 @@ export const SystemProvider = ({ children }) => {
     await loadAlerts();
   };
 
+  const triggerOverstay = async (passId) => {
+    const pass = passes.find(p => p.id === passId);
+    if (!pass) return;
+    const worker = workers.find(w => w.id === pass.workerId);
+    const company = companies.find(c => c.id === pass.companyId);
+    await supabase.from('security_alerts').insert({
+      type: 'overstay',
+      message: `WORKER OVERSTAY: Worker ${worker?.name || 'Unknown'} (Company: ${company?.name || 'N/A'}) exceeded zone access time limit!`,
+      pass_id: passId,
+      resolved: false,
+    });
+    await loadAlerts();
+  };
+
+  const triggerSealMismatch = async (deliveryId, actualSeal = '') => {
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    const driver = drivers.find(d => d.id === delivery.driverId);
+    const truck = trucks.find(t => t.id === delivery.truckId);
+    const company = companies.find(c => c.id === delivery.companyId);
+    await supabase.from('security_alerts').insert({
+      type: 'seal_mismatch',
+      message: `SEAL MISMATCH: Driver ${driver?.name || 'Unknown'} (Truck: ${truck?.plate || 'N/A'}, Company: ${company?.name || 'N/A'}) reported a seal mismatch! Expected: ${delivery.sealNumber}${actualSeal ? `, Found: ${actualSeal}` : ''}`,
+      pass_id: deliveryId,
+      resolved: false
+    });
+    await loadAlerts();
+  };
+
   const resolveAlert = async (alertId) => {
     await supabase.from('security_alerts').update({ resolved: true }).eq('id', alertId);
     await loadAlerts();
@@ -368,7 +452,7 @@ export const SystemProvider = ({ children }) => {
       requestPass, approvePassVendor, approvePassCeva, approvePassVendorBulk, approvePassCevaBulk, checkInPass, checkOutPass,
       registerTruck, verifyTruck,
       registerDriver, verifyDriver,
-      assignDelivery, checkInTruck, checkOutTruck, triggerTruckOverstay,
+      assignDelivery, checkInTruck, checkOutTruck, triggerTruckOverstay, triggerOverstay, triggerSealMismatch,
       resolveAlert, registerSupervisor, verifySupervisor, deleteSupervisor, resetSystem,
     }}>
       {children}

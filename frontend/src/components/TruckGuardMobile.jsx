@@ -11,6 +11,7 @@ export default function TruckGuardMobile() {
     checkOutTruck,
     activeTruckHeadcount,
     triggerTruckOverstay,
+    triggerSealMismatch,
     alerts
   } = useSystem();
 
@@ -27,6 +28,12 @@ export default function TruckGuardMobile() {
   const [exitPhotoVerified, setExitPhotoVerified] = useState(false);
   const [exitSealVerified, setExitSealVerified] = useState(false);
   const [hasCapturedExitPhotos, setHasCapturedExitPhotos] = useState(false);
+
+  // Custom Mismatch Dialog State
+  const [showMismatchDialog, setShowMismatchDialog] = useState(false);
+  const [mismatchDeliveryId, setMismatchDeliveryId] = useState('');
+  const [observedSealNumber, setObservedSealNumber] = useState('');
+  const [mismatchSuccessMsg, setMismatchSuccessMsg] = useState('');
 
   const activeAlerts = alerts.filter(a => !a.resolved && a.message.includes('TRUCK'));
   const currentDelivery = deliveries.find(d => d.id === selectedDeliveryId);
@@ -237,15 +244,32 @@ export default function TruckGuardMobile() {
                       <span>Gate Inspection Live</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                     <span style={{ fontSize: '0.7rem' }}>Seal #: {currentDelivery.sealNumber}</span>
-                    <button 
-                      className={sealVerified ? "inspector-btn-success" : "inspector-btn-primary"}
-                      onClick={simulateSealVerify}
-                      disabled={sealVerified}
-                    >
-                      {sealVerified ? '✅ Seal Matched' : 'Physically Verify Seal'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button 
+                        className={sealVerified ? "inspector-btn-success" : "inspector-btn-primary"}
+                        onClick={simulateSealVerify}
+                        disabled={sealVerified}
+                      >
+                        {sealVerified ? '✅ Seal Matched' : 'Physically Verify Seal'}
+                      </button>
+                      {!sealVerified && (
+                        <button
+                          type="button"
+                          className="inspector-btn-primary"
+                          style={{ background: '#dc2626', color: '#fff', border: 'none' }}
+                          onClick={() => {
+                            setMismatchDeliveryId(currentDelivery.id);
+                            setObservedSealNumber('');
+                            setMismatchSuccessMsg('');
+                            setShowMismatchDialog(true);
+                          }}
+                        >
+                          ⚠️ Mismatch
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -395,16 +419,33 @@ export default function TruckGuardMobile() {
                                   <span>Exit Live</span>
                                 </div>
                               </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                                 <span style={{ fontSize: '0.7rem' }}>Seal #: {d.sealNumber}</span>
-                                <button 
-                                  type="button"
-                                  className={exitSealVerified ? "inspector-btn-success" : "inspector-btn-primary"}
-                                  onClick={() => setExitSealVerified(true)}
-                                  disabled={exitSealVerified}
-                                >
-                                  {exitSealVerified ? '✅ Seal Matched' : 'Verify Outbound Seal'}
-                                </button>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button 
+                                    type="button"
+                                    className={exitSealVerified ? "inspector-btn-success" : "inspector-btn-primary"}
+                                    onClick={() => setExitSealVerified(true)}
+                                    disabled={exitSealVerified}
+                                  >
+                                    {exitSealVerified ? '✅ Seal Matched' : 'Verify Outbound Seal'}
+                                  </button>
+                                  {!exitSealVerified && (
+                                    <button
+                                      type="button"
+                                      className="inspector-btn-primary"
+                                      style={{ background: '#dc2626', color: '#fff', border: 'none' }}
+                                      onClick={() => {
+                                        setMismatchDeliveryId(d.id);
+                                        setObservedSealNumber('');
+                                        setMismatchSuccessMsg('');
+                                        setShowMismatchDialog(true);
+                                      }}
+                                    >
+                                      ⚠️ Mismatch
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -446,6 +487,122 @@ export default function TruckGuardMobile() {
             </div>
           )}
         </div>
+        {showMismatchDialog && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+            fontFamily: "'Inter', sans-serif"
+          }}>
+            <div style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '280px',
+              padding: '20px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              animation: 'slideUp 0.15s ease-out'
+            }}>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a', textAlign: 'center' }}>
+                Report Seal Mismatch
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                Enter the actual physical seal number observed on the container.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Observed Seal #
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. SEAL 1234"
+                  value={observedSealNumber} 
+                  onChange={(e) => setObservedSealNumber(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    color: '#0f172a',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  autoFocus
+                />
+              </div>
+              
+              {mismatchSuccessMsg && (
+                <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600, textAlign: 'center' }}>
+                  {mismatchSuccessMsg}
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMismatchDialog(false);
+                    setObservedSealNumber('');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!observedSealNumber.trim()) {
+                      alert("Please enter the observed seal number.");
+                      return;
+                    }
+                    triggerSealMismatch(mismatchDeliveryId, observedSealNumber.trim());
+                    setMismatchSuccessMsg("Reported successfully!");
+                    setTimeout(() => {
+                      setShowMismatchDialog(false);
+                      setObservedSealNumber('');
+                      setMismatchSuccessMsg('');
+                    }, 1200);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

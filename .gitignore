@@ -23,12 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment files
-.env
-.env.*
-frontend/.env
-backend/.env
-
 # Build output
 dist/
 .vite/
